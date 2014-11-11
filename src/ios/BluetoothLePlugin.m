@@ -22,7 +22,7 @@ NSString *const keyCharacteristicUuid = @"characteristicUuid";
 NSString *const keyDescriptorUuid = @"descriptorUuid";
 NSString *const keyValue = @"value";
 NSString *const keyType = @"type";
-NSString *const keyIsInitialized = @"isInitialized";
+NSString *const keyIsInitialized = @"isInitalized";
 NSString *const keyIsEnabled = @"isEnabled";
 NSString *const keyIsScanning = @"isScanning";
 NSString *const keyIsConnected = @"isConnected";
@@ -1149,6 +1149,9 @@ NSString *const operationWrite = @"write";
     {
         return;
     }
+
+	NSString* tmpCallback = discoverCallback;
+	discoverCallback = nil;
     
     //Get name which could be null
     NSObject* name = [self formatName:peripheral.name];
@@ -1159,8 +1162,7 @@ NSString *const operationWrite = @"write";
         NSDictionary* returnObj = [NSDictionary dictionaryWithObjectsAndKeys: errorDiscoverServices, keyError, name, keyName, [peripheral.identifier UUIDString], keyAddress, error.description, keyMessage, nil];
         CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:returnObj];
         [pluginResult setKeepCallbackAsBool:false];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:discoverCallback];
-        discoverCallback = nil;
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:tmpCallback];        
         return;
     }
     
@@ -1175,10 +1177,7 @@ NSString *const operationWrite = @"write";
     NSDictionary* returnObj = [NSDictionary dictionaryWithObjectsAndKeys: statusDiscoveredServices, keyStatus, name, keyName, [peripheral.identifier UUIDString], keyAddress, services, keyServiceUuids, nil];
     CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:returnObj];
     [pluginResult setKeepCallbackAsBool:false];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:discoverCallback];
-    
-    //Set callback to null
-    discoverCallback = nil;
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:tmpCallback];
 }
 
 - (void)peripheral:(CBPeripheral *)peripheral didDiscoverCharacteristicsForService:(CBService *)service error:(NSError *)error
@@ -1188,6 +1187,9 @@ NSString *const operationWrite = @"write";
     {
         return;
     }
+
+	NSString* tmpCallback = discoverCallback;
+	discoverCallback = nil;
     
     //Get name which could be null
     NSObject* name = [self formatName:peripheral.name];
@@ -1198,8 +1200,7 @@ NSString *const operationWrite = @"write";
         NSDictionary* returnObj = [NSDictionary dictionaryWithObjectsAndKeys: errorDiscoverCharacteristics, keyError, name, keyName, [peripheral.identifier UUIDString], keyAddress, error.description, keyMessage, nil];
         CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:returnObj];
         [pluginResult setKeepCallbackAsBool:false];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:discoverCallback];
-        discoverCallback = nil;
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:tmpCallback];
         return;
     }
     
@@ -1218,10 +1219,7 @@ NSString *const operationWrite = @"write";
     NSDictionary* returnObj = [NSDictionary dictionaryWithObjectsAndKeys: statusDiscoveredCharacteristics, keyStatus, name, keyName, [peripheral.identifier UUIDString], keyAddress, characteristics, keyCharacteristics, [service.UUID representativeString], keyServiceUuid, nil];
     CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:returnObj];
     [pluginResult setKeepCallbackAsBool:false];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:discoverCallback];
-    
-    //Set callback to null
-    discoverCallback = nil;
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:tmpCallback];
 }
 
 - (void)peripheral:(CBPeripheral *)peripheral didDiscoverDescriptorsForCharacteristic:(CBCharacteristic *)characteristic error:(NSError *)error
@@ -1231,6 +1229,9 @@ NSString *const operationWrite = @"write";
     {
         return;
     }
+
+	NSString* tmpCallback = discoverCallback;
+	discoverCallback = nil;
     
     //Get name which may be nul
     NSObject* name = [self formatName:peripheral.name];
@@ -1241,8 +1242,7 @@ NSString *const operationWrite = @"write";
         NSDictionary* returnObj = [NSDictionary dictionaryWithObjectsAndKeys: errorDiscoverDescriptors, keyError, name, keyName, [peripheral.identifier UUIDString], keyAddress, error.description, keyMessage, nil];
         CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:returnObj];
         [pluginResult setKeepCallbackAsBool:false];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:discoverCallback];
-        discoverCallback = nil;
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:tmpCallback];
         return;
     }
     
@@ -1257,10 +1257,7 @@ NSString *const operationWrite = @"write";
     NSDictionary* returnObj = [NSDictionary dictionaryWithObjectsAndKeys: statusDiscoveredDescriptors, keyStatus, name, keyName, [peripheral.identifier UUIDString], keyAddress, descriptors, keyDescriptorUuids, [characteristic.UUID representativeString], keyCharacteristicUuid, [characteristic.service.UUID representativeString], keyServiceUuid, nil];
     CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:returnObj];
     [pluginResult setKeepCallbackAsBool:false];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:discoverCallback];
-    
-    //Set callback to null
-    discoverCallback = nil;
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:tmpCallback];
 }
 
 - (void)peripheral:(CBPeripheral *)peripheral didUpdateValueForCharacteristic:(CBCharacteristic *)characteristic error:(NSError *)error
@@ -1534,6 +1531,7 @@ NSString *const operationWrite = @"write";
         [self.commandDelegate sendPluginResult:pluginResult callbackId:callback];
         
         [self removeCallback:characteristic.UUID forOperationType:operationUnsubscribe];
+        [self removeCallback:characteristic.UUID forOperationType:operationSubscribe];
     }
 }
 
@@ -1622,11 +1620,50 @@ NSString *const operationWrite = @"write";
 
 - (void) clearOperationCallbacks
 {
-    //Clear all the device specific callbacks
+	//Clear all the device specific callbacks
+	NSMutableDictionary* tmpOperationCallbacks = operationCallbacks;
     operationCallbacks = [NSMutableDictionary dictionary];
+	NSString* tmpDiscoverCallback = discoverCallback;
     discoverCallback = nil;
+	NSString* tmpDescriptorCallback = descriptorCallback;
     descriptorCallback = nil;
+	NSString* tmpRssiCallback = rssiCallback;
     rssiCallback = nil;
+
+	if (tmpDiscoverCallback != nil) {
+		NSDictionary* returnObj = [NSDictionary dictionaryWithObjectsAndKeys: @"Unknown Error", keyError, @"Unknown Periphal", keyName, @"Unknown Adress", keyAddress, @"Device closed unexpected.", keyMessage, nil];
+        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:returnObj];
+        [pluginResult setKeepCallbackAsBool:false];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:tmpDiscoverCallback];  
+	}
+	if (tmpDescriptorCallback != nil) {
+		NSDictionary* returnObj = [NSDictionary dictionaryWithObjectsAndKeys: @"Unknown Error", keyError, @"Unknown Periphal", keyName, @"Unknown Adress", keyAddress, @"Device closed unexpected.", keyMessage, nil];
+        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:returnObj];
+        [pluginResult setKeepCallbackAsBool:false];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:tmpDescriptorCallback];  
+	}
+	if (tmpRssiCallback != nil) {
+		NSDictionary* returnObj = [NSDictionary dictionaryWithObjectsAndKeys: @"Unknown Error", keyError, @"Unknown Periphal", keyName, @"Unknown Adress", keyAddress, @"Device closed unexpected.", keyMessage, nil];
+        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:returnObj];
+        [pluginResult setKeepCallbackAsBool:false];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:tmpRssiCallback];  
+	}
+	for (NSString* key in tmpOperationCallbacks) {
+		//See if callback map exists for characteristic
+		NSMutableDictionary* characteristicCallbacks = [tmpOperationCallbacks objectForKey:key];
+		if (characteristicCallbacks != nil)
+		{
+			for (NSString* operationType in characteristicCallbacks) {
+				NSString* charCallback = [characteristicCallbacks objectForKey:operationType];
+				if (charCallback != nil) {
+					NSDictionary* returnObj = [NSDictionary dictionaryWithObjectsAndKeys: @"Unknown Error", keyError, @"Unknown Periphal", keyName, @"Unknown Adress", keyAddress, @"Device closed unexpected.", keyMessage, nil];
+					CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:returnObj];
+					[pluginResult setKeepCallbackAsBool:false];
+					[self.commandDelegate sendPluginResult:pluginResult callbackId:charCallback]; 
+				}
+			}
+		}
+	}
 }
 
 //Helpers to check conditions and send callbacks
