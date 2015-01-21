@@ -27,6 +27,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -1418,8 +1420,36 @@ public class BluetoothLePlugin extends CordovaPlugin
     	}
     	
       JSONObject returnObj = new JSONObject();
+
+	  String devName = device.getName();
+	  if (devName == null && scanRecord != null) {
+		ByteBuffer buffer = ByteBuffer.wrap(scanRecord).order(ByteOrder.LITTLE_ENDIAN);
+        while (buffer.remaining() > 2 && devName == null) {
+			byte length = buffer.get();
+            if (length == 0) {
+				break;
+			}
+
+			byte type = buffer.get();
+			switch (type) {
+				case 0x08:
+				case 0x09:
+					byte[] nameBytes = new byte[length-1];
+                    buffer.get(nameBytes);
+                    try {
+                        devName = new String(nameBytes, "utf-8");
+                    } finally {
+						break;
+                    }
+
+				default:
+					buffer.position(buffer.position() + length - 1);
+					break;
+			}
+		}
+	  }
       
-      addProperty(returnObj, keyName, device.getName());
+      addProperty(returnObj, keyName, devName);
       addProperty(returnObj, keyAddress, device.getAddress());
       addProperty(returnObj, keyRssi, rssi);
       addPropertyBytes(returnObj, keyAdvertisement, scanRecord);
